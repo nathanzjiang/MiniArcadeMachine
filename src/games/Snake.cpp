@@ -1,6 +1,14 @@
 #include "Snake.h"
 #include "InputManager.h"
 
+namespace {
+bool wantsMenuExit(const InputState &input) {
+    return input.left || input.leftRisingEdge ||
+           input.joystickInput == JoystickInput::LEFT ||
+           input.joystickRisingEdge == JoystickInput::LEFT;
+}
+}
+
 void Snake::begin(GameContext &ctx) {
     state = SnakeState{};
     for (int16_t x = 1; x <= state.gridLength; x++) {
@@ -18,6 +26,7 @@ void Snake::begin(GameContext &ctx) {
     Serial.println("Snake started");
 
     frameDirty = true;
+    fullFrameDirty = false;
     uiDirty = true;
 }
 
@@ -25,11 +34,12 @@ void Snake::update(GameContext &ctx) {
     if (gameState == START) {
         begin(ctx);
         newToStartState = false;
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
         } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
             resetTiming();
+            fullFrameDirty = true;
             gameState = PLAY;
         }
     } else if (gameState == PLAY) {
@@ -39,7 +49,7 @@ void Snake::update(GameContext &ctx) {
 
         updateSprite(ctx);
     } else if (gameState == LOSE) {
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
         } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
@@ -47,7 +57,7 @@ void Snake::update(GameContext &ctx) {
             newToStartState = true;
         }
     } else if (gameState == WIN) {
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
         } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
@@ -132,6 +142,7 @@ void Snake::moveSquare(const std::pair<int16_t, int16_t> &newSquare) {
 
         state.score++;
         if (state.score == 5) {
+            completed = true;
             gameState = WIN;
         }
         return;
@@ -164,6 +175,14 @@ void Snake::moveSquare(const std::pair<int16_t, int16_t> &newSquare) {
 
 void Snake::render(GameContext &ctx) {
     if (gameState == START || gameState == PLAY) {
+        if (fullFrameDirty) {
+            drawFullSpriteFrame(ctx.display);
+            fullFrameDirty = false;
+            frameDirty = false;
+            uiDirty = false;
+            return;
+        }
+
         if (frameDirty) {
             drawSpriteFrame(ctx.display);
         }
@@ -186,6 +205,24 @@ void Snake::render(GameContext &ctx) {
 
 void Snake::resetTiming() {
     state.lastFrameMicros = micros();
+}
+
+void Snake::drawFullSpriteFrame(LGFX &display) const {
+    display.startWrite();
+
+    display.fillScreen(TFT_BLACK);
+    for (const std::pair<int16_t, int16_t> square : state.snake) {
+        display.fillRect(square.first * state.boxSize, square.second * state.boxSize, state.boxSize, state.boxSize, TFT_WHITE);
+    }
+
+    display.fillRect(state.food.first * state.boxSize, state.food.second * state.boxSize, state.boxSize, state.boxSize, TFT_RED);
+    display.setTextSize(1.5);
+    display.setTextDatum(top_left);
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    display.drawString("Score: " + static_cast<String>(state.score), 0, 0);
+    display.drawRect(15, 15, 290, 210, TFT_WHITE);
+
+    display.endWrite();
 }
 
 void Snake::drawSpriteFrame(LGFX &display) const {
@@ -211,28 +248,18 @@ void Snake::drawScoreUI(LGFX &display) const {
 }
 
 void Snake::drawInitialSpriteFrame(LGFX &display) const {
+    drawFullSpriteFrame(display);
+
     display.startWrite();
-
-    display.fillScreen(TFT_BLACK);
-    for (const std::pair<int16_t, int16_t> square : state.snake) {
-        display.fillRect(square.first * state.boxSize, square.second * state.boxSize, state.boxSize, state.boxSize, TFT_WHITE);
-    }
-
-    display.fillRect(state.food.first * state.boxSize, state.food.second * state.boxSize, state.boxSize, state.boxSize, TFT_RED);
-    display.setTextSize(1.5);
-    display.setTextDatum(top_left);
-    display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.drawString("Score: " + static_cast<String>(state.score), 0, 0);
-    display.drawRect(15, 15, 290, 210, TFT_WHITE);
 
     display.setTextSize(2);
     display.setTextDatum(middle_center);
     display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.drawString("SNAKE", tft.width() / 2, 60);
+    display.drawString("SNAKE", tft.width() / 2, 38);
     display.setTextSize(1);
-    display.drawString("RIGHT/B: start", tft.width() / 2, 88);
-    display.drawString("LEFT: menu", tft.width() / 2, 104);
-    display.drawString("Eat 5 red squares to win", tft.width() / 2, 120);
+    display.drawString("RIGHT/B: start", tft.width() / 2, 58);
+    display.drawString("LEFT: menu", tft.width() / 2, 72);
+    display.drawString("Eat 5 red squares to win", tft.width() / 2, 86);
 
     display.endWrite();
 }

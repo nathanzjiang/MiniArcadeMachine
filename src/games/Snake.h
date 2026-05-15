@@ -53,6 +53,7 @@ private:
 
     SnakeState state;
     bool frameDirty = false;
+    bool fullFrameDirty = false;
     bool uiDirty = false;
     bool newToStartState = true;
 
@@ -61,6 +62,7 @@ private:
     void resetTiming();
     bool shouldDrawFrame();
     void updateSprite(GameContext &ctx);
+    void drawFullSpriteFrame(LGFX &display) const;
     void drawSpriteFrame(LGFX &display) const;
 
     void drawScoreUI(LGFX &display) const;

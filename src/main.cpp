@@ -12,9 +12,21 @@ SpriteDemoGame spriteDemo;
 Snake snake;
 Mario mario;
 
+const char HELP_TEXT[] =
+    "Welcome to MINI-ARC OS.\n"
+    "Run snake.app first.\n"
+    "Beat Snake to unlock Mario.\n"
+    "Beat Mario to unlock the secret file.";
+
+const char SECRET_TEXT[] =
+    "ACCESS GRANTED.\n"
+    "You cleared every available game.";
+
 ArcadeMenuItem menuItems[] = {
-    {"SNAKE", "snake.run", &snake},
-    {"SUPER MARIO", "super_mario.run", &mario},
+    {"README", "help.txt", ArcadeMenuItemType::Text, nullptr, HELP_TEXT, nullptr},
+    {"SNAKE", "snake.app", ArcadeMenuItemType::App, &snake, nullptr, nullptr},
+    {"SUPER MARIO", "mario.app", ArcadeMenuItemType::App, &mario, nullptr, &snake},
+    {"SECRET", "SECRET.txt", ArcadeMenuItemType::Text, nullptr, SECRET_TEXT, &mario},
 };
 
 ArcadeMenu arcadeMenu(menuItems, sizeof(menuItems) / sizeof(menuItems[0]));

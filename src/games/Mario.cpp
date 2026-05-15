@@ -28,6 +28,12 @@ const int16_t ENEMY_SPRITE_OFFSET_X = -1;
 const int16_t ENEMY_SPRITE_OFFSET_Y = -2;
 const int16_t COIN_HITBOX_INSET = 2;
 const int16_t COIN_HITBOX_SIZE = 12;
+
+bool wantsMenuExit(const InputState &input) {
+    return input.left || input.leftRisingEdge ||
+           input.joystickInput == JoystickInput::LEFT ||
+           input.joystickRisingEdge == JoystickInput::LEFT;
+}
 }
 
 void Mario::begin(GameContext &ctx) {
@@ -42,7 +48,7 @@ void Mario::begin(GameContext &ctx) {
 
 void Mario::update(GameContext &ctx) {
     if (mode == MarioMode::START) {
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
             return;
@@ -58,7 +64,7 @@ void Mario::update(GameContext &ctx) {
     }
 
     if (mode == MarioMode::LOSE) {
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
             return;
@@ -74,7 +80,7 @@ void Mario::update(GameContext &ctx) {
     }
 
     if (mode == MarioMode::WIN) {
-        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+        if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
             return;
@@ -192,6 +198,7 @@ const MarioLevels::Level &Mario::activeLevel() const {
 
 void Mario::advanceLevel() {
     if (state.currentLevel + 1 >= MarioLevels::LEVEL_COUNT) {
+        completed = true;
         mode = MarioMode::WIN;
         screenDirty = true;
         return;
