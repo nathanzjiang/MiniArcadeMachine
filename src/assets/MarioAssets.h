@@ -42,9 +42,9 @@ constexpr uint16_t GROUND_MID = hexToRgb565(0xA06020);
 constexpr uint16_t GROUND_DARK = hexToRgb565(0x603600);
 constexpr uint16_t COIN_YELLOW = hexToRgb565(0xFFE600);
 constexpr uint16_t COIN_ORANGE = hexToRgb565(0xFF9E00);
-constexpr uint16_t PLAYER_RED = hexToRgb565(0xD80000);
-constexpr uint16_t PLAYER_SKIN = hexToRgb565(0xFFAD66);
-constexpr uint16_t PLAYER_BLUE = hexToRgb565(0x006BFF);
+constexpr uint16_t PLAYER_RED = hexToRgb565(0xB92716);
+constexpr uint16_t PLAYER_SKIN = hexToRgb565(0xF0AC3F);
+constexpr uint16_t PLAYER_GREEN = hexToRgb565(0x736702);
 constexpr uint16_t GOOMBA_BROWN = hexToRgb565(0xA14528);
 constexpr uint16_t GOOMBA_TAN = hexToRgb565(0xD6A552);
 
@@ -105,28 +105,28 @@ static const PaletteEntry PLAYER_PALETTE[] = {
     {'.', TRANSPARENT},
     {'r', PLAYER_RED},
     {'s', PLAYER_SKIN},
-    {'b', PLAYER_BLUE},
+    {'g', PLAYER_GREEN},
     {'k', BLACK},
     {'w', WHITE}
 };
 
 static const char *const PLAYER_IDLE_ROWS[] = {
-    ".....rrrr.......",
-    "....rrrrrr......",
-    "...rrssskk......",
-    "...rsssssk......",
-    "...rsskssk......",
-    "....ssss........",
-    "...rrbrrr.......",
-    "..rrrbbrrr......",
-    ".rr.rbb.r.......",
-    "....bbbb........",
-    "...bbbbbb.......",
-    "...bb..bb.......",
-    "..kkk..kkk......",
-    ".kkkk..kkkk.....",
-    "..kk....kk......",
-    ".kkk....kkk....."
+    ".....rrrrr......",
+    "....rrrrrrrrr...",
+    "....gggssgs.....",
+    "...gsgsssgsss...",
+    "...gsggsssgsss..",
+    "...ggssssgggg...",
+    ".....sssssss....",
+    "....ggrggg......",
+    "...gggrggrggg...",
+    "..ggggrrrrgggg..",
+    "..ssgrsrrsrgss..",
+    "..sssrrrrrrsss..",
+    "..ssrrrrrrrrss..",
+    "....rrr..rrr....",
+    "...ggg....ggg...",
+    "..gggg....gggg.."
 };
 
 static const char *const PLAYER_JUMP_ROWS[] = {
