@@ -47,7 +47,7 @@ private:
     static const int16_t TILE_SIZE = 16;
     static const int16_t MAP_W = 20;
     static const int16_t MAP_H = 15;
-    static const uint16_t TARGET_FPS = 30;
+    static const uint16_t TARGET_FPS = 20;
     static const uint32_t FRAME_INTERVAL_MICROS = 1000000UL / TARGET_FPS;
 
     MarioState state;

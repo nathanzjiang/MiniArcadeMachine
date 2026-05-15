@@ -7,7 +7,7 @@ LGFX::LGFX() {
         auto cfg = bus.config();
         cfg.spi_host = SPI2_HOST;
         cfg.spi_mode = 0;
-        cfg.freq_write = 10000000;
+        cfg.freq_write = 40000000;
         cfg.freq_read = 8000000;
         cfg.spi_3wire = false;
         cfg.use_lock = true;

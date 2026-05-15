@@ -19,9 +19,6 @@ void InputManager::update() {
     current.a = digitalRead(5);
     current.b = digitalRead(6);
 
-    Serial.println("A: " + static_cast<String>(current.a));
-    Serial.println("B: " + static_cast<String>(current.b));
-
     current.up = dUp > 0;
     current.down = dDown > 0;
     current.left = dLeft > 0;
