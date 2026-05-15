@@ -35,10 +35,7 @@ void ArcadeMenu::begin(GameContext &ctx) {
 
 void ArcadeMenu::update(GameContext &ctx) {
     if (modalOpen) {
-        if (ctx.input.aRisingEdge || ctx.input.bRisingEdge ||
-            ctx.input.leftRisingEdge || ctx.input.rightRisingEdge ||
-            ctx.input.joystickRisingEdge == JoystickInput::LEFT ||
-            ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
+        if (ctx.input.aRisingEdge || ctx.input.bRisingEdge) {
             closeModal();
         }
         return;
@@ -50,7 +47,7 @@ void ArcadeMenu::update(GameContext &ctx) {
         moveSelection(1);
     }
 
-    if (ctx.input.aRisingEdge || ctx.input.bRisingEdge) {
+    if (ctx.input.bRisingEdge) {
         handleSelectedItem();
     }
 }
@@ -156,7 +153,7 @@ void ArcadeMenu::drawTerminal(LGFX &display) {
     }
 
     display.setTextColor(TERM_DIM, TERM_BG);
-    display.drawString("UP/DOWN SELECT   A/B EXEC", 12, display.height() - 24);
+    display.drawString("UP/DOWN SELECT   B OPEN", 12, display.height() - 24);
     display.endWrite();
 }
 

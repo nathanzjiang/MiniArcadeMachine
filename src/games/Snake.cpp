@@ -3,9 +3,7 @@
 
 namespace {
 bool wantsMenuExit(const InputState &input) {
-    return input.left || input.leftRisingEdge ||
-           input.joystickInput == JoystickInput::LEFT ||
-           input.joystickRisingEdge == JoystickInput::LEFT;
+    return input.a || input.aRisingEdge;
 }
 }
 
@@ -37,7 +35,7 @@ void Snake::update(GameContext &ctx) {
         if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
-        } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
+        } else if (ctx.input.bRisingEdge) {
             resetTiming();
             fullFrameDirty = true;
             gameState = PLAY;
@@ -52,7 +50,7 @@ void Snake::update(GameContext &ctx) {
         if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
-        } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
+        } else if (ctx.input.bRisingEdge) {
             gameState = START;
             newToStartState = true;
         }
@@ -60,7 +58,7 @@ void Snake::update(GameContext &ctx) {
         if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
-        } else if (ctx.input.bRisingEdge || ctx.input.rightRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::RIGHT) {
+        } else if (ctx.input.bRisingEdge) {
             gameState = START;
             newToStartState = true;
         }
@@ -257,8 +255,8 @@ void Snake::drawInitialSpriteFrame(LGFX &display) const {
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     display.drawString("SNAKE", tft.width() / 2, 38);
     display.setTextSize(1);
-    display.drawString("RIGHT/B: start", tft.width() / 2, 58);
-    display.drawString("LEFT: menu", tft.width() / 2, 72);
+    display.drawString("B: start", tft.width() / 2, 58);
+    display.drawString("A: menu", tft.width() / 2, 72);
     display.drawString("Eat 5 red squares to win", tft.width() / 2, 86);
 
     display.endWrite();
@@ -272,8 +270,8 @@ void Snake::drawLoseScreen(LGFX &display) const {
     display.setTextDatum(middle_center);
     display.drawString("You Lose", tft.width() / 2, tft.height() / 2 - 20);
     display.setTextSize(2);
-    display.drawString("RIGHT/B retry", tft.width() / 2, tft.height() / 2 + 18);
-    display.drawString("LEFT menu", tft.width() / 2, tft.height() / 2 + 42);
+    display.drawString("B retry", tft.width() / 2, tft.height() / 2 + 18);
+    display.drawString("A menu", tft.width() / 2, tft.height() / 2 + 42);
     display.endWrite();
 }
 
@@ -285,7 +283,7 @@ void Snake::drawWinScreen(LGFX &display) const {
     display.setTextDatum(middle_center);
     display.drawString("You Win!", tft.width() / 2, tft.height() / 2 - 20);
     display.setTextSize(2);
-    display.drawString("RIGHT/B replay", tft.width() / 2, tft.height() / 2 + 18);
-    display.drawString("LEFT menu", tft.width() / 2, tft.height() / 2 + 42);
+    display.drawString("B replay", tft.width() / 2, tft.height() / 2 + 18);
+    display.drawString("A menu", tft.width() / 2, tft.height() / 2 + 42);
     display.endWrite();
 }
