@@ -2,9 +2,66 @@
 #define MINIARCADEMACHINE_MARIO_H
 #include "Game.h"
 
+enum class MarioMode {
+    START,
+    PLAY,
+    LOSE,
+    WIN
+};
+
+struct MarioActor {
+    float x = 0.0f;
+    float y = 0.0f;
+    float vx = 0.0f;
+    float vy = 0.0f;
+    int16_t w = 12;
+    int16_t h = 16;
+    bool onGround = false;
+};
+
+struct MarioState {
+    uint32_t lastFrameMicros = 0;
+    uint32_t lastJumpPressedMs = 0;
+    uint32_t lastGroundedMs = 0;
+    uint8_t coins = 0;
+    bool coinCollected[2] = {false, false};
+    MarioActor player;
+    MarioActor enemy;
+    bool enemyAlive = true;
+    int8_t enemyDir = -1;
+};
 
 class Mario : public Game {
+public:
+    void begin(GameContext &ctx) override;
+    void update(GameContext &ctx) override;
+    void render(GameContext &ctx) override;
 
+private:
+    static const int16_t TILE_SIZE = 16;
+    static const int16_t MAP_W = 20;
+    static const int16_t MAP_H = 15;
+    static const uint16_t TARGET_FPS = 30;
+    static const uint32_t FRAME_INTERVAL_MICROS = 1000000UL / TARGET_FPS;
+
+    MarioState state;
+    MarioMode mode = MarioMode::START;
+    bool frameDirty = true;
+    bool screenDirty = true;
+
+    void resetLevel();
+    bool shouldStep();
+    void stepPhysics(GameContext &ctx);
+    void moveActor(MarioActor &actor, float dx, float dy);
+    bool isSolidTile(int16_t tileX, int16_t tileY) const;
+    bool overlaps(float ax, float ay, int16_t aw, int16_t ah,
+                  float bx, float by, int16_t bw, int16_t bh) const;
+    void updateCoins();
+    void updateEnemy();
+    void checkPlayerHazards();
+    void drawPlayfield(LGFX &display);
+    void drawStatus(LGFX &display);
+    void drawCenteredMessage(LGFX &display, const char *title, const char *prompt);
 };
 
 
