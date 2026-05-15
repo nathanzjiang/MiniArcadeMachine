@@ -132,22 +132,22 @@ static const char *const PLAYER_IDLE_ROWS[] = {
 };
 
 static const char *const PLAYER_JUMP_ROWS[] = {
-    ".....rrrr.......",
-    "....rrrrrr......",
-    "...rrssskk......",
-    "...rsssssk......",
-    "...rsskssk......",
-    "....ssss........",
-    "...rrbrrr..r....",
-    "..rrrbbrrrr.....",
-    ".rr.rbb.........",
-    "....bbbb........",
-    "...bbbbbb.......",
-    "..bbb..bb.......",
-    ".kkk...kkk......",
-    "kkkk............",
-    "kkk.....kk......",
-    "kk......kkk....."
+    ".............sss",
+    "......rrrrr..sss",
+    ".....rrrrrrrrrss",
+    ".....gggssgs.ggg",
+    "....gsgsssgssggg",
+    "....gsggsssgsssg",
+    "....ggssssggggg.",
+    "......sssssssg..",
+    "..gggggrgggrg...",
+    ".gggggggrgggr..g",
+    "ssggggggrrrrr..g",
+    "sss.rrgrrsrrsrgg",
+    ".s.grrrrrrrrrrgg",
+    "..gggrrrrrrrrrgg",
+    ".gggrrrrrrr.....",
+    ".g..rrrr........"
 };
 
 static const PaletteEntry GOOMBA_PALETTE[] = {
