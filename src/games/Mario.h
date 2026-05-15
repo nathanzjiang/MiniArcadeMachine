@@ -63,6 +63,7 @@ private:
     void stepPhysics(GameContext &ctx);
     void moveActor(MarioActor &actor, float dx, float dy);
     bool isSolidTile(int16_t tileX, int16_t tileY) const;
+    bool isActorSupported(const MarioActor &actor) const;
     bool overlaps(float ax, float ay, int16_t aw, int16_t ah,
                   float bx, float by, int16_t bw, int16_t bh) const;
     void updateCoins();

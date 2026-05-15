@@ -139,7 +139,7 @@ void Mario::render(GameContext &ctx) {
         state.lastEnemyX = state.enemy.x;
         state.lastEnemyY = state.enemy.y;
         state.lastEnemyAlive = state.enemyAlive;
-        state.playerWasJumping = !state.player.onGround || state.player.vy < -0.1f;
+        state.playerWasJumping = state.player.vy < -0.1f || !isActorSupported(state.player);
         state.coinDirty[0] = false;
         state.coinDirty[1] = false;
         return;
@@ -174,7 +174,7 @@ void Mario::resetLevel() {
     state.lastEnemyX = state.enemy.x;
     state.lastEnemyY = state.enemy.y;
     state.lastEnemyAlive = state.enemyAlive;
-    state.playerWasJumping = !state.player.onGround || state.player.vy < -0.1f;
+    state.playerWasJumping = state.player.vy < -0.1f || !isActorSupported(state.player);
     state.lastFrameMicros = micros();
     statusDirty = true;
     gameEnded = false;
@@ -192,6 +192,12 @@ bool Mario::shouldStep() {
 
 void Mario::stepPhysics(GameContext &ctx) {
     MarioActor &p = state.player;
+    if (p.vy >= 0.0f && isActorSupported(p)) {
+        p.onGround = true;
+        p.vy = 0.0f;
+        state.lastGroundedMs = ctx.nowMs;
+        state.jumpReady = true;
+    }
 
     if (ctx.input.left) {
         p.vx -= MOVE_ACCEL;
@@ -207,8 +213,6 @@ void Mario::stepPhysics(GameContext &ctx) {
     }
 
     p.vx = constrain(p.vx, -MAX_SPEED, MAX_SPEED);
-    p.vy += GRAVITY;
-    p.vy = min(p.vy, 7.0f);
 
     const bool jumpBuffered = ctx.nowMs - state.lastJumpPressedMs <= JUMP_BUFFER_MS;
     const bool canCoyoteJump = ctx.nowMs - state.lastGroundedMs <= COYOTE_MS;
@@ -220,11 +224,19 @@ void Mario::stepPhysics(GameContext &ctx) {
         state.lastGroundedMs = 0;
     }
 
+    if (!p.onGround) {
+        p.vy += GRAVITY;
+        p.vy = min(p.vy, 7.0f);
+    }
+
     if (p.vy < 0.0f && !ctx.input.b) {
         p.vy *= 0.55f;
     }
 
     moveActor(p, p.vx, 0.0f);
+    if (p.onGround && !isActorSupported(p)) {
+        p.onGround = false;
+    }
     moveActor(p, 0.0f, p.vy);
 
     if (p.onGround) {
@@ -289,6 +301,20 @@ bool Mario::isSolidTile(int16_t tileX, int16_t tileY) const {
     }
 
     return LEVEL[tileY][tileX] == '#';
+}
+
+bool Mario::isActorSupported(const MarioActor &actor) const {
+    const int16_t footY = floor((actor.y + actor.h) / TILE_SIZE);
+    const int16_t left = floor((actor.x + 1) / TILE_SIZE);
+    const int16_t right = floor((actor.x + actor.w - 2) / TILE_SIZE);
+
+    for (int16_t tx = left; tx <= right; tx++) {
+        if (isSolidTile(tx, footY)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool Mario::overlaps(float ax, float ay, int16_t aw, int16_t ah,
@@ -360,7 +386,7 @@ void Mario::drawPlayfield(LGFX &display) {
 }
 
 void Mario::drawDirtyFrame(LGFX &display) {
-    const bool playerIsJumping = !state.player.onGround || state.player.vy < -0.1f;
+    const bool playerIsJumping = state.player.vy < -0.1f || !isActorSupported(state.player);
     const bool playerMoved = static_cast<int16_t>(state.lastPlayerX) != static_cast<int16_t>(state.player.x) ||
                              static_cast<int16_t>(state.lastPlayerY) != static_cast<int16_t>(state.player.y);
     const bool playerSpriteChanged = state.playerWasJumping != playerIsJumping;
@@ -517,7 +543,7 @@ void Mario::drawEnemy(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) 
 void Mario::drawPlayer(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
     const int16_t x = state.player.x + offsetX + PLAYER_SPRITE_OFFSET_X;
     const int16_t y = state.player.y + offsetY + PLAYER_SPRITE_OFFSET_Y;
-    const bool jumping = !state.player.onGround || state.player.vy < -0.1f;
+    const bool jumping = state.player.vy < -0.1f || !isActorSupported(state.player);
     MarioAssets::draw(canvas, x, y, jumping ? MarioAssets::PLAYER_JUMP : MarioAssets::PLAYER_IDLE);
 }
 
