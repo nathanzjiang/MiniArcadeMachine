@@ -13,8 +13,8 @@ Snake snake;
 Mario mario;
 
 ArcadeMenuItem menuItems[] = {
-    {"SNAKE", "run snake", &snake},
-    {"SUPER MARIO", "run super_mario", &mario},
+    {"SNAKE", "snake.run", &snake},
+    {"SUPER MARIO", "super_mario.run", &mario},
 };
 
 ArcadeMenu arcadeMenu(menuItems, sizeof(menuItems) / sizeof(menuItems[0]));
@@ -22,6 +22,9 @@ ArcadeMenu arcadeMenu(menuItems, sizeof(menuItems) / sizeof(menuItems[0]));
 void setup() {
     Serial.begin(115200);
     delay(1000);
+
+    snake.exitGame = &arcadeMenu;
+    mario.exitGame = &arcadeMenu;
 
     setupDisplay();
     runner.begin(&arcadeMenu);

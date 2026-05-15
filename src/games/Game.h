@@ -22,6 +22,7 @@ public:
 
     bool gameEnded = false;
     Game *nextGame = nullptr;
+    Game *exitGame = nullptr;
 };
 
 #endif

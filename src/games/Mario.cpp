@@ -42,6 +42,12 @@ void Mario::begin(GameContext &ctx) {
 
 void Mario::update(GameContext &ctx) {
     if (mode == MarioMode::START) {
+        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+            nextGame = exitGame;
+            gameEnded = true;
+            return;
+        }
+
         if (ctx.input.aRisingEdge || ctx.input.bRisingEdge) {
             mode = MarioMode::PLAY;
             state.lastFrameMicros = micros();
@@ -52,6 +58,12 @@ void Mario::update(GameContext &ctx) {
     }
 
     if (mode == MarioMode::LOSE) {
+        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+            nextGame = exitGame;
+            gameEnded = true;
+            return;
+        }
+
         if (ctx.input.aRisingEdge || ctx.input.bRisingEdge) {
             resetLevel();
             mode = MarioMode::PLAY;
@@ -62,6 +74,12 @@ void Mario::update(GameContext &ctx) {
     }
 
     if (mode == MarioMode::WIN) {
+        if ((ctx.input.leftRisingEdge || ctx.input.joystickRisingEdge == JoystickInput::LEFT) && exitGame != nullptr) {
+            nextGame = exitGame;
+            gameEnded = true;
+            return;
+        }
+
         if (ctx.input.aRisingEdge || ctx.input.bRisingEdge) {
             resetLevel();
             mode = MarioMode::START;
@@ -89,7 +107,7 @@ void Mario::update(GameContext &ctx) {
 void Mario::render(GameContext &ctx) {
     if (mode == MarioMode::START) {
         if (screenDirty) {
-            drawCenteredMessage(ctx.display, "PLATFORMER", "A/B START");
+            drawCenteredMessage(ctx.display, "PLATFORMER", "A/B START   LEFT MENU");
             screenDirty = false;
         }
         return;
@@ -97,7 +115,7 @@ void Mario::render(GameContext &ctx) {
 
     if (mode == MarioMode::LOSE) {
         if (screenDirty) {
-            drawCenteredMessage(ctx.display, "TRY AGAIN", "A/B RESTART");
+            drawCenteredMessage(ctx.display, "TRY AGAIN", "A/B RETRY   LEFT MENU");
             screenDirty = false;
         }
         return;
@@ -105,7 +123,7 @@ void Mario::render(GameContext &ctx) {
 
     if (mode == MarioMode::WIN) {
         if (screenDirty) {
-            drawCenteredMessage(ctx.display, "COURSE CLEAR", "A/B MENU");
+            drawCenteredMessage(ctx.display, "COURSE CLEAR", "A/B REPLAY   LEFT MENU");
             screenDirty = false;
         }
         return;
