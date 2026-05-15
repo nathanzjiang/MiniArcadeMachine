@@ -68,11 +68,13 @@ private:
     void checkPlayerHazards();
     void drawPlayfield(LGFX &display);
     void drawDirtyFrame(LGFX &display);
-    void drawBackgroundRegion(LGFX &display, int16_t x, int16_t y, int16_t w, int16_t h);
-    void drawCoins(LGFX &display);
-    void drawFlag(LGFX &display);
-    void drawEnemy(LGFX &display);
-    void drawPlayer(LGFX &display);
+    void drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worldY,
+                         int16_t w, int16_t h, bool includeActors,
+                         int16_t canvasX = 0, int16_t canvasY = 0);
+    void drawCoins(lgfx::LGFXBase &canvas, int16_t offsetX = 0, int16_t offsetY = 0);
+    void drawFlag(lgfx::LGFXBase &canvas, int16_t offsetX = 0, int16_t offsetY = 0);
+    void drawEnemy(lgfx::LGFXBase &canvas, int16_t offsetX = 0, int16_t offsetY = 0);
+    void drawPlayer(lgfx::LGFXBase &canvas, int16_t offsetX = 0, int16_t offsetY = 0);
     void drawStatus(LGFX &display);
     void drawCenteredMessage(LGFX &display, const char *title, const char *prompt);
 };

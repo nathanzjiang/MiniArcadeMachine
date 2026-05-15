@@ -35,6 +35,14 @@ const float MAX_SPEED = 2.2f;
 const float JUMP_SPEED = -6.1f;
 const uint32_t JUMP_BUFFER_MS = 120;
 const uint32_t COYOTE_MS = 100;
+
+void expandDirtyRect(int16_t &left, int16_t &top, int16_t &right, int16_t &bottom,
+                     int16_t x, int16_t y, int16_t w, int16_t h) {
+    left = min<int16_t>(left, x - 3);
+    top = min<int16_t>(top, y - 3);
+    right = max<int16_t>(right, x + w + 3);
+    bottom = max<int16_t>(bottom, y + h + 3);
+}
 }
 
 void Mario::begin(GameContext &ctx) {
@@ -75,6 +83,10 @@ void Mario::update(GameContext &ctx) {
             frameDirty = true;
         }
         return;
+    }
+
+    if (ctx.input.bRisingEdge) {
+        state.lastJumpPressedMs = ctx.nowMs;
     }
 
     if (!shouldStep()) {
@@ -176,10 +188,6 @@ bool Mario::shouldStep() {
 void Mario::stepPhysics(GameContext &ctx) {
     MarioActor &p = state.player;
 
-    if (ctx.input.aRisingEdge || ctx.input.bRisingEdge || ctx.input.upRisingEdge) {
-        state.lastJumpPressedMs = ctx.nowMs;
-    }
-
     if (ctx.input.left) {
         p.vx -= MOVE_ACCEL;
     }
@@ -206,7 +214,7 @@ void Mario::stepPhysics(GameContext &ctx) {
         state.lastGroundedMs = 0;
     }
 
-    if (p.vy < 0.0f && !(ctx.input.a || ctx.input.b || ctx.input.up)) {
+    if (p.vy < 0.0f && !ctx.input.b) {
         p.vy *= 0.55f;
     }
 
@@ -337,54 +345,67 @@ void Mario::checkPlayerHazards() {
 
 void Mario::drawPlayfield(LGFX &display) {
     display.startWrite();
-    display.fillScreen(SKY);
-
-    for (int16_t y = 0; y < MAP_H; y++) {
-        for (int16_t x = 0; x < MAP_W; x++) {
-            const char tile = LEVEL[y][x];
-            const int16_t px = x * TILE_SIZE;
-            const int16_t py = y * TILE_SIZE;
-
-            if (tile == '#') {
-                display.fillRect(px, py, TILE_SIZE, TILE_SIZE, BRICK);
-                display.drawRect(px, py, TILE_SIZE, TILE_SIZE, DIRT);
-            }
-        }
-    }
-
-    drawCoins(display);
-    drawFlag(display);
-    drawEnemy(display);
-    drawPlayer(display);
-
+    drawWorldRegion(display, 0, 0, MAP_W * TILE_SIZE, MAP_H * TILE_SIZE, true);
     display.endWrite();
 }
 
 void Mario::drawDirtyFrame(LGFX &display) {
-    const int16_t px = state.lastPlayerX - 2;
-    const int16_t py = state.lastPlayerY - 2;
-    const int16_t ex = state.lastEnemyX - 2;
-    const int16_t ey = state.lastEnemyY - 2;
+    int16_t left = MAP_W * TILE_SIZE;
+    int16_t top = MAP_H * TILE_SIZE;
+    int16_t right = 0;
+    int16_t bottom = 0;
 
-    display.startWrite();
+    expandDirtyRect(left, top, right, bottom, state.lastPlayerX, state.lastPlayerY,
+                    state.player.w, state.player.h);
+    expandDirtyRect(left, top, right, bottom, state.player.x, state.player.y,
+                    state.player.w, state.player.h);
 
-    drawBackgroundRegion(display, px, py, state.player.w + 4, state.player.h + 4);
     if (state.lastEnemyAlive) {
-        drawBackgroundRegion(display, ex, ey, state.enemy.w + 4, state.enemy.h + 4);
+        expandDirtyRect(left, top, right, bottom, state.lastEnemyX, state.lastEnemyY,
+                        state.enemy.w, state.enemy.h);
+    }
+    if (state.enemyAlive) {
+        expandDirtyRect(left, top, right, bottom, state.enemy.x, state.enemy.y,
+                        state.enemy.w, state.enemy.h);
     }
 
     const int16_t coinX[2] = {5 * TILE_SIZE + 3, 12 * TILE_SIZE + 3};
     const int16_t coinY[2] = {8 * TILE_SIZE + 3, 6 * TILE_SIZE + 3};
     for (uint8_t i = 0; i < 2; i++) {
         if (state.coinDirty[i]) {
-            drawBackgroundRegion(display, coinX[i], coinY[i], 10, 10);
-            state.coinDirty[i] = false;
+            expandDirtyRect(left, top, right, bottom, coinX[i], coinY[i], 10, 10);
         }
     }
 
-    drawEnemy(display);
-    drawPlayer(display);
-    display.endWrite();
+    left = max<int16_t>(0, left);
+    top = max<int16_t>(14, top);
+    right = min<int16_t>(MAP_W * TILE_SIZE, right);
+    bottom = min<int16_t>(MAP_H * TILE_SIZE, bottom);
+    const int16_t w = right - left;
+    const int16_t h = bottom - top;
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    LGFX_Sprite dirty(&display);
+    dirty.setColorDepth(16);
+    if (dirty.createSprite(w, h) == nullptr) {
+        display.startWrite();
+        display.setClipRect(left, top, w, h);
+        drawWorldRegion(display, left, top, w, h, true, left, top);
+        display.clearClipRect();
+        display.endWrite();
+    } else {
+        drawWorldRegion(dirty, left, top, w, h, true);
+        display.startWrite();
+        dirty.pushSprite(&display, left, top);
+        display.endWrite();
+        dirty.deleteSprite();
+    }
+
+    for (uint8_t i = 0; i < 2; i++) {
+        state.coinDirty[i] = false;
+    }
 
     state.lastPlayerX = state.player.x;
     state.lastPlayerY = state.player.y;
@@ -393,77 +414,104 @@ void Mario::drawDirtyFrame(LGFX &display) {
     state.lastEnemyAlive = state.enemyAlive;
 }
 
-void Mario::drawBackgroundRegion(LGFX &display, int16_t x, int16_t y, int16_t w, int16_t h) {
-    x = max<int16_t>(0, x);
-    y = max<int16_t>(14, y);
-    w = min<int16_t>(w, MAP_W * TILE_SIZE - x);
-    h = min<int16_t>(h, MAP_H * TILE_SIZE - y);
+void Mario::drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worldY,
+                            int16_t w, int16_t h, bool includeActors,
+                            int16_t canvasX, int16_t canvasY) {
+    worldX = max<int16_t>(0, worldX);
+    worldY = max<int16_t>(0, worldY);
+    w = min<int16_t>(w, MAP_W * TILE_SIZE - worldX);
+    h = min<int16_t>(h, MAP_H * TILE_SIZE - worldY);
     if (w <= 0 || h <= 0) {
         return;
     }
 
-    display.fillRect(x, y, w, h, SKY);
+    canvas.fillRect(canvasX, canvasY, w, h, SKY);
 
-    const int16_t left = max<int16_t>(0, x / TILE_SIZE);
-    const int16_t right = min<int16_t>(MAP_W - 1, (x + w - 1) / TILE_SIZE);
-    const int16_t top = max<int16_t>(0, y / TILE_SIZE);
-    const int16_t bottom = min<int16_t>(MAP_H - 1, (y + h - 1) / TILE_SIZE);
+    const int16_t left = max<int16_t>(0, worldX / TILE_SIZE);
+    const int16_t right = min<int16_t>(MAP_W - 1, (worldX + w - 1) / TILE_SIZE);
+    const int16_t top = max<int16_t>(0, worldY / TILE_SIZE);
+    const int16_t bottom = min<int16_t>(MAP_H - 1, (worldY + h - 1) / TILE_SIZE);
 
     for (int16_t ty = top; ty <= bottom; ty++) {
         for (int16_t tx = left; tx <= right; tx++) {
             if (LEVEL[ty][tx] == '#') {
-                const int16_t px = tx * TILE_SIZE;
-                const int16_t py = ty * TILE_SIZE;
-                display.fillRect(px, py, TILE_SIZE, TILE_SIZE, BRICK);
-                display.drawRect(px, py, TILE_SIZE, TILE_SIZE, DIRT);
+                const int16_t px = canvasX + tx * TILE_SIZE - worldX;
+                const int16_t py = canvasY + ty * TILE_SIZE - worldY;
+                canvas.fillRect(px, py, TILE_SIZE, TILE_SIZE, BRICK);
+                canvas.drawRect(px, py, TILE_SIZE, TILE_SIZE, DIRT);
             }
         }
     }
 
-    drawCoins(display);
-    drawFlag(display);
+    drawCoins(canvas, canvasX - worldX, canvasY - worldY);
+    drawFlag(canvas, canvasX - worldX, canvasY - worldY);
+
+    if (includeActors) {
+        drawEnemy(canvas, canvasX - worldX, canvasY - worldY);
+        drawPlayer(canvas, canvasX - worldX, canvasY - worldY);
+    }
 }
 
-void Mario::drawCoins(LGFX &display) {
+void Mario::drawCoins(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
     const int16_t coinX[2] = {5 * TILE_SIZE + 8, 12 * TILE_SIZE + 8};
     const int16_t coinY[2] = {8 * TILE_SIZE + 8, 6 * TILE_SIZE + 8};
     for (uint8_t i = 0; i < 2; i++) {
         if (!state.coinCollected[i]) {
-            display.fillCircle(coinX[i], coinY[i], 5, COIN);
-            display.drawCircle(coinX[i], coinY[i], 5, TFT_BLACK);
+            canvas.fillCircle(coinX[i] + offsetX, coinY[i] + offsetY, 5, COIN);
+            canvas.drawCircle(coinX[i] + offsetX, coinY[i] + offsetY, 5, TFT_BLACK);
         }
     }
 }
 
-void Mario::drawFlag(LGFX &display) {
-    display.drawFastVLine(17 * TILE_SIZE + 4, 4 * TILE_SIZE, TILE_SIZE * 2, TFT_WHITE);
-    display.fillTriangle(17 * TILE_SIZE + 5, 4 * TILE_SIZE,
-                         17 * TILE_SIZE + 5, 4 * TILE_SIZE + 16,
-                         18 * TILE_SIZE + 1, 4 * TILE_SIZE + 8, FLAG);
+void Mario::drawFlag(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
+    canvas.drawFastVLine(17 * TILE_SIZE + 4 + offsetX, 4 * TILE_SIZE + offsetY, TILE_SIZE * 2, TFT_WHITE);
+    canvas.fillTriangle(17 * TILE_SIZE + 5 + offsetX, 4 * TILE_SIZE + offsetY,
+                        17 * TILE_SIZE + 5 + offsetX, 4 * TILE_SIZE + 16 + offsetY,
+                        18 * TILE_SIZE + 1 + offsetX, 4 * TILE_SIZE + 8 + offsetY, FLAG);
 }
 
-void Mario::drawEnemy(LGFX &display) {
+void Mario::drawEnemy(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
     if (!state.enemyAlive) {
         return;
     }
 
-    display.fillRoundRect(state.enemy.x, state.enemy.y, state.enemy.w, state.enemy.h, 3, ENEMY);
-    display.fillRect(state.enemy.x + 3, state.enemy.y + 4, 2, 2, TFT_BLACK);
-    display.fillRect(state.enemy.x + 9, state.enemy.y + 4, 2, 2, TFT_BLACK);
+    const int16_t x = state.enemy.x + offsetX;
+    const int16_t y = state.enemy.y + offsetY;
+    canvas.fillRoundRect(x, y, state.enemy.w, state.enemy.h, 3, ENEMY);
+    canvas.fillRect(x + 3, y + 4, 2, 2, TFT_BLACK);
+    canvas.fillRect(x + 9, y + 4, 2, 2, TFT_BLACK);
 }
 
-void Mario::drawPlayer(LGFX &display) {
-    display.fillRect(state.player.x, state.player.y + 5, state.player.w, state.player.h - 5, PLAYER);
-    display.fillRect(state.player.x + 2, state.player.y, state.player.w - 4, 6, PLAYER_TRIM);
-    display.fillRect(state.player.x + 8, state.player.y + 8, 2, 2, TFT_BLACK);
+void Mario::drawPlayer(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
+    const int16_t x = state.player.x + offsetX;
+    const int16_t y = state.player.y + offsetY;
+    canvas.fillRect(x, y + 5, state.player.w, state.player.h - 5, PLAYER);
+    canvas.fillRect(x + 2, y, state.player.w - 4, 6, PLAYER_TRIM);
+    canvas.fillRect(x + 8, y + 8, 2, 2, TFT_BLACK);
 }
 
 void Mario::drawStatus(LGFX &display) {
-    display.fillRect(0, 0, display.width(), 14, TFT_BLACK);
-    display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.setTextSize(1);
-    display.setTextDatum(top_left);
-    display.drawString("COINS " + static_cast<String>(state.coins) + "/2", 4, 3);
+    LGFX_Sprite status(&display);
+    status.setColorDepth(16);
+    if (status.createSprite(display.width(), 14) == nullptr) {
+        display.fillRect(0, 0, display.width(), 14, TFT_BLACK);
+        display.setTextColor(TFT_WHITE, TFT_BLACK);
+        display.setTextSize(1);
+        display.setTextDatum(top_left);
+        display.drawString("COINS " + static_cast<String>(state.coins) + "/2", 4, 3);
+        return;
+    }
+
+    status.fillRect(0, 0, display.width(), 14, TFT_BLACK);
+    status.setTextColor(TFT_WHITE, TFT_BLACK);
+    status.setTextSize(1);
+    status.setTextDatum(top_left);
+    status.drawString("COINS " + static_cast<String>(state.coins) + "/2", 4, 3);
+
+    display.startWrite();
+    status.pushSprite(&display, 0, 0);
+    display.endWrite();
+    status.deleteSprite();
 }
 
 void Mario::drawCenteredMessage(LGFX &display, const char *title, const char *prompt) {
