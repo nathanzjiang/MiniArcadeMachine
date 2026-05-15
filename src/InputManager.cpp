@@ -11,10 +11,10 @@ void InputManager::begin() {
 void InputManager::update() {
     previous = current;
 
-    int dUp = analogRead(A0) - 2000;
-    int dDown = 1800 - analogRead(A0);
-    int dLeft = 1850 - analogRead(A1);
-    int dRight = analogRead(A1) - 2050;
+    int dUp = 1800 - analogRead(A0);
+    int dDown = analogRead(A0) - 2000;
+    int dLeft = analogRead(A1) - 2050;
+    int dRight = 1850 - analogRead(A1);
 
     current.a = digitalRead(5);
     current.b = digitalRead(6);
