@@ -34,6 +34,7 @@ struct MarioState {
     float lastEnemyY = 0.0f;
     bool enemyAlive = true;
     bool lastEnemyAlive = true;
+    bool jumpReady = true;
     int8_t enemyDir = -1;
 };
 

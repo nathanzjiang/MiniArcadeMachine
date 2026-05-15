@@ -32,7 +32,7 @@ const float GRAVITY = 0.55f;
 const float MOVE_ACCEL = 0.75f;
 const float FRICTION = 0.72f;
 const float MAX_SPEED = 2.2f;
-const float JUMP_SPEED = -6.1f;
+const float JUMP_SPEED = -8.2f;
 const uint32_t JUMP_BUFFER_MS = 120;
 const uint32_t COYOTE_MS = 100;
 
@@ -207,9 +207,10 @@ void Mario::stepPhysics(GameContext &ctx) {
 
     const bool jumpBuffered = ctx.nowMs - state.lastJumpPressedMs <= JUMP_BUFFER_MS;
     const bool canCoyoteJump = ctx.nowMs - state.lastGroundedMs <= COYOTE_MS;
-    if (jumpBuffered && canCoyoteJump) {
+    if (jumpBuffered && canCoyoteJump && state.jumpReady) {
         p.vy = JUMP_SPEED;
         p.onGround = false;
+        state.jumpReady = false;
         state.lastJumpPressedMs = 0;
         state.lastGroundedMs = 0;
     }
@@ -223,6 +224,7 @@ void Mario::stepPhysics(GameContext &ctx) {
 
     if (p.onGround) {
         state.lastGroundedMs = ctx.nowMs;
+        state.jumpReady = true;
     }
 
     if (p.y > MAP_H * TILE_SIZE) {
@@ -274,8 +276,11 @@ void Mario::moveActor(MarioActor &actor, float dx, float dy) {
 }
 
 bool Mario::isSolidTile(int16_t tileX, int16_t tileY) const {
-    if (tileX < 0 || tileX >= MAP_W || tileY < 0 || tileY >= MAP_H) {
-        return tileY >= MAP_H;
+    if (tileY < 0 || tileY >= MAP_H) {
+        return false;
+    }
+    if (tileX < 0 || tileX >= MAP_W) {
+        return true;
     }
 
     return LEVEL[tileY][tileX] == '#';
