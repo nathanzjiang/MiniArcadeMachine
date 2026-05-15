@@ -1,4 +1,5 @@
 #include "Mario.h"
+#include "assets/MarioAssets.h"
 
 namespace {
 const char *LEVEL[] = {
@@ -35,6 +36,16 @@ const float MAX_SPEED = 2.2f;
 const float JUMP_SPEED = -8.2f;
 const uint32_t JUMP_BUFFER_MS = 120;
 const uint32_t COYOTE_MS = 100;
+const int16_t PLAYER_HITBOX_W = 12;
+const int16_t PLAYER_HITBOX_H = 16;
+const int16_t PLAYER_SPRITE_OFFSET_X = -2;
+const int16_t PLAYER_SPRITE_OFFSET_Y = 0;
+const int16_t ENEMY_HITBOX_W = 14;
+const int16_t ENEMY_HITBOX_H = 14;
+const int16_t ENEMY_SPRITE_OFFSET_X = -1;
+const int16_t ENEMY_SPRITE_OFFSET_Y = -2;
+const int16_t COIN_HITBOX_INSET = 2;
+const int16_t COIN_HITBOX_SIZE = 12;
 
 void expandDirtyRect(int16_t &left, int16_t &top, int16_t &right, int16_t &bottom,
                      int16_t x, int16_t y, int16_t w, int16_t h) {
@@ -156,13 +167,13 @@ void Mario::resetLevel() {
     state = MarioState{};
     state.player.x = 2.0f * TILE_SIZE;
     state.player.y = 10.0f * TILE_SIZE;
-    state.player.w = 12;
-    state.player.h = 16;
+    state.player.w = PLAYER_HITBOX_W;
+    state.player.h = PLAYER_HITBOX_H;
 
     state.enemy.x = 14.0f * TILE_SIZE;
     state.enemy.y = 10.0f * TILE_SIZE + 2;
-    state.enemy.w = 14;
-    state.enemy.h = 14;
+    state.enemy.w = ENEMY_HITBOX_W;
+    state.enemy.h = ENEMY_HITBOX_H;
     state.enemy.vx = -0.6f;
     state.enemyDir = -1;
     state.lastPlayerX = state.player.x;
@@ -292,13 +303,13 @@ bool Mario::overlaps(float ax, float ay, int16_t aw, int16_t ah,
 }
 
 void Mario::updateCoins() {
-    const int16_t coinX[2] = {5 * TILE_SIZE + 4, 12 * TILE_SIZE + 4};
-    const int16_t coinY[2] = {8 * TILE_SIZE + 4, 6 * TILE_SIZE + 4};
+    const int16_t coinX[2] = {5 * TILE_SIZE + COIN_HITBOX_INSET, 12 * TILE_SIZE + COIN_HITBOX_INSET};
+    const int16_t coinY[2] = {8 * TILE_SIZE + COIN_HITBOX_INSET, 6 * TILE_SIZE + COIN_HITBOX_INSET};
 
     for (uint8_t i = 0; i < 2; i++) {
         if (!state.coinCollected[i] &&
             overlaps(state.player.x, state.player.y, state.player.w, state.player.h,
-                     coinX[i], coinY[i], 8, 8)) {
+                     coinX[i], coinY[i], COIN_HITBOX_SIZE, COIN_HITBOX_SIZE)) {
             state.coinCollected[i] = true;
             state.coinDirty[i] = true;
             state.coins++;
@@ -360,25 +371,34 @@ void Mario::drawDirtyFrame(LGFX &display) {
     int16_t right = 0;
     int16_t bottom = 0;
 
-    expandDirtyRect(left, top, right, bottom, state.lastPlayerX, state.lastPlayerY,
-                    state.player.w, state.player.h);
-    expandDirtyRect(left, top, right, bottom, state.player.x, state.player.y,
-                    state.player.w, state.player.h);
+    expandDirtyRect(left, top, right, bottom,
+                    state.lastPlayerX + PLAYER_SPRITE_OFFSET_X,
+                    state.lastPlayerY + PLAYER_SPRITE_OFFSET_Y,
+                    MarioAssets::SIZE, MarioAssets::SIZE);
+    expandDirtyRect(left, top, right, bottom,
+                    state.player.x + PLAYER_SPRITE_OFFSET_X,
+                    state.player.y + PLAYER_SPRITE_OFFSET_Y,
+                    MarioAssets::SIZE, MarioAssets::SIZE);
 
     if (state.lastEnemyAlive) {
-        expandDirtyRect(left, top, right, bottom, state.lastEnemyX, state.lastEnemyY,
-                        state.enemy.w, state.enemy.h);
+        expandDirtyRect(left, top, right, bottom,
+                        state.lastEnemyX + ENEMY_SPRITE_OFFSET_X,
+                        state.lastEnemyY + ENEMY_SPRITE_OFFSET_Y,
+                        MarioAssets::SIZE, MarioAssets::SIZE);
     }
     if (state.enemyAlive) {
-        expandDirtyRect(left, top, right, bottom, state.enemy.x, state.enemy.y,
-                        state.enemy.w, state.enemy.h);
+        expandDirtyRect(left, top, right, bottom,
+                        state.enemy.x + ENEMY_SPRITE_OFFSET_X,
+                        state.enemy.y + ENEMY_SPRITE_OFFSET_Y,
+                        MarioAssets::SIZE, MarioAssets::SIZE);
     }
 
-    const int16_t coinX[2] = {5 * TILE_SIZE + 3, 12 * TILE_SIZE + 3};
-    const int16_t coinY[2] = {8 * TILE_SIZE + 3, 6 * TILE_SIZE + 3};
+    const int16_t coinX[2] = {5 * TILE_SIZE, 12 * TILE_SIZE};
+    const int16_t coinY[2] = {8 * TILE_SIZE, 6 * TILE_SIZE};
     for (uint8_t i = 0; i < 2; i++) {
         if (state.coinDirty[i]) {
-            expandDirtyRect(left, top, right, bottom, coinX[i], coinY[i], 10, 10);
+            expandDirtyRect(left, top, right, bottom, coinX[i], coinY[i],
+                            MarioAssets::SIZE, MarioAssets::SIZE);
         }
     }
 
@@ -442,8 +462,7 @@ void Mario::drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worl
             if (LEVEL[ty][tx] == '#') {
                 const int16_t px = canvasX + tx * TILE_SIZE - worldX;
                 const int16_t py = canvasY + ty * TILE_SIZE - worldY;
-                canvas.fillRect(px, py, TILE_SIZE, TILE_SIZE, BRICK);
-                canvas.drawRect(px, py, TILE_SIZE, TILE_SIZE, DIRT);
+                MarioAssets::draw(canvas, px, py, MarioAssets::GROUND);
             }
         }
     }
@@ -462,8 +481,7 @@ void Mario::drawCoins(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) 
     const int16_t coinY[2] = {8 * TILE_SIZE + 8, 6 * TILE_SIZE + 8};
     for (uint8_t i = 0; i < 2; i++) {
         if (!state.coinCollected[i]) {
-            canvas.fillCircle(coinX[i] + offsetX, coinY[i] + offsetY, 5, COIN);
-            canvas.drawCircle(coinX[i] + offsetX, coinY[i] + offsetY, 5, TFT_BLACK);
+            MarioAssets::draw(canvas, coinX[i] + offsetX - 8, coinY[i] + offsetY - 8, MarioAssets::COIN);
         }
     }
 }
@@ -480,19 +498,16 @@ void Mario::drawEnemy(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) 
         return;
     }
 
-    const int16_t x = state.enemy.x + offsetX;
-    const int16_t y = state.enemy.y + offsetY;
-    canvas.fillRoundRect(x, y, state.enemy.w, state.enemy.h, 3, ENEMY);
-    canvas.fillRect(x + 3, y + 4, 2, 2, TFT_BLACK);
-    canvas.fillRect(x + 9, y + 4, 2, 2, TFT_BLACK);
+    const int16_t x = state.enemy.x + offsetX + ENEMY_SPRITE_OFFSET_X;
+    const int16_t y = state.enemy.y + offsetY + ENEMY_SPRITE_OFFSET_Y;
+    MarioAssets::draw(canvas, x, y, MarioAssets::GOOMBA);
 }
 
 void Mario::drawPlayer(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
-    const int16_t x = state.player.x + offsetX;
-    const int16_t y = state.player.y + offsetY;
-    canvas.fillRect(x, y + 5, state.player.w, state.player.h - 5, PLAYER);
-    canvas.fillRect(x + 2, y, state.player.w - 4, 6, PLAYER_TRIM);
-    canvas.fillRect(x + 8, y + 8, 2, 2, TFT_BLACK);
+    const int16_t x = state.player.x + offsetX + PLAYER_SPRITE_OFFSET_X;
+    const int16_t y = state.player.y + offsetY + PLAYER_SPRITE_OFFSET_Y;
+    const bool jumping = !state.player.onGround || state.player.vy < -0.1f;
+    MarioAssets::draw(canvas, x, y, jumping ? MarioAssets::PLAYER_JUMP : MarioAssets::PLAYER_IDLE);
 }
 
 void Mario::drawStatus(LGFX &display) {
