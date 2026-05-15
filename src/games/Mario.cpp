@@ -35,6 +35,8 @@ bool wantsMenuExit(const InputState &input) {
 }
 
 void Mario::begin(GameContext &ctx) {
+    gameEnded = false;
+    nextGame = nullptr;
     state.currentLevel = 0;
     resetLevel();
     mode = MarioMode::START;

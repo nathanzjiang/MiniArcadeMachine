@@ -8,6 +8,9 @@ bool wantsMenuExit(const InputState &input) {
 }
 
 void Snake::begin(GameContext &ctx) {
+    gameEnded = false;
+    nextGame = nullptr;
+    gameState = START;
     state = SnakeState{};
     for (int16_t x = 1; x <= state.gridLength; x++) {
         for (int16_t y = 1; y <= state.gridWidth; y++) {
@@ -17,21 +20,17 @@ void Snake::begin(GameContext &ctx) {
         }
     }
 
-    if (newToStartState) {
-        drawInitialSpriteFrame(ctx.display);
-    }
+    drawInitialSpriteFrame(ctx.display);
 
     Serial.println("Snake started");
 
-    frameDirty = true;
+    frameDirty = false;
     fullFrameDirty = false;
-    uiDirty = true;
+    uiDirty = false;
 }
 
 void Snake::update(GameContext &ctx) {
     if (gameState == START) {
-        begin(ctx);
-        newToStartState = false;
         if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
@@ -51,16 +50,14 @@ void Snake::update(GameContext &ctx) {
             nextGame = exitGame;
             gameEnded = true;
         } else if (ctx.input.bRisingEdge) {
-            gameState = START;
-            newToStartState = true;
+            begin(ctx);
         }
     } else if (gameState == WIN) {
         if (wantsMenuExit(ctx.input) && exitGame != nullptr) {
             nextGame = exitGame;
             gameEnded = true;
         } else if (ctx.input.bRisingEdge) {
-            gameState = START;
-            newToStartState = true;
+            begin(ctx);
         }
     }
 }

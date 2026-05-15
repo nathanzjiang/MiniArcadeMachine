@@ -55,7 +55,6 @@ private:
     bool frameDirty = false;
     bool fullFrameDirty = false;
     bool uiDirty = false;
-    bool newToStartState = true;
 
     GAME_STATE gameState = START;
 
