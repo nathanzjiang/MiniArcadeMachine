@@ -2,24 +2,6 @@
 #include "assets/MarioAssets.h"
 
 namespace {
-const char *LEVEL[] = {
-    "....................",
-    "....................",
-    "....................",
-    "....................",
-    ".................F..",
-    "................##..",
-    "............C.......",
-    "...........###......",
-    ".....C..............",
-    "....###.............",
-    "..............E.....",
-    "..P...........###...",
-    "########..##########",
-    "########..##########",
-    "########..##########"
-};
-
 const uint16_t SKY = 0x7DFF;
 const uint16_t DIRT = 0x8A22;
 const uint16_t BRICK = 0xC3A6;
@@ -49,6 +31,7 @@ const int16_t COIN_HITBOX_SIZE = 12;
 }
 
 void Mario::begin(GameContext &ctx) {
+    state.currentLevel = 0;
     resetLevel();
     mode = MarioMode::START;
     screenDirty = true;
@@ -140,8 +123,9 @@ void Mario::render(GameContext &ctx) {
         state.lastEnemyY = state.enemy.y;
         state.lastEnemyAlive = state.enemyAlive;
         state.playerWasJumping = state.player.vy < -0.1f || !isActorSupported(state.player);
-        state.coinDirty[0] = false;
-        state.coinDirty[1] = false;
+        for (uint8_t i = 0; i < MarioLevels::MAX_COINS; i++) {
+            state.coinDirty[i] = false;
+        }
         return;
     }
 
@@ -157,14 +141,18 @@ void Mario::render(GameContext &ctx) {
 }
 
 void Mario::resetLevel() {
+    const uint8_t levelIndex = state.currentLevel;
+    const MarioLevels::Level &level = MarioLevels::LEVELS[levelIndex];
+
     state = MarioState{};
-    state.player.x = 2.0f * TILE_SIZE;
-    state.player.y = 10.0f * TILE_SIZE;
+    state.currentLevel = levelIndex;
+    state.player.x = level.playerStart.x * TILE_SIZE;
+    state.player.y = level.playerStart.y * TILE_SIZE;
     state.player.w = PLAYER_HITBOX_W;
     state.player.h = PLAYER_HITBOX_H;
 
-    state.enemy.x = 14.0f * TILE_SIZE;
-    state.enemy.y = 10.0f * TILE_SIZE + 2;
+    state.enemy.x = level.enemyStart.x * TILE_SIZE;
+    state.enemy.y = level.enemyStart.y * TILE_SIZE + 2;
     state.enemy.w = ENEMY_HITBOX_W;
     state.enemy.h = ENEMY_HITBOX_H;
     state.enemy.vx = -0.6f;
@@ -178,6 +166,24 @@ void Mario::resetLevel() {
     state.lastFrameMicros = micros();
     statusDirty = true;
     gameEnded = false;
+}
+
+const MarioLevels::Level &Mario::activeLevel() const {
+    return MarioLevels::LEVELS[state.currentLevel];
+}
+
+void Mario::advanceLevel() {
+    if (state.currentLevel + 1 >= MarioLevels::LEVEL_COUNT) {
+        mode = MarioMode::WIN;
+        screenDirty = true;
+        return;
+    }
+
+    state.currentLevel++;
+    resetLevel();
+    screenDirty = true;
+    frameDirty = true;
+    statusDirty = true;
 }
 
 bool Mario::shouldStep() {
@@ -249,9 +255,9 @@ void Mario::stepPhysics(GameContext &ctx) {
         screenDirty = true;
     }
 
-    if (overlaps(p.x, p.y, p.w, p.h, 17 * TILE_SIZE, 4 * TILE_SIZE, TILE_SIZE, TILE_SIZE * 2)) {
-        mode = MarioMode::WIN;
-        screenDirty = true;
+    const MarioLevels::TilePoint flag = activeLevel().flag;
+    if (overlaps(p.x, p.y, p.w, p.h, flag.x * TILE_SIZE, flag.y * TILE_SIZE, TILE_SIZE, TILE_SIZE * 2)) {
+        advanceLevel();
     }
 }
 
@@ -300,7 +306,7 @@ bool Mario::isSolidTile(int16_t tileX, int16_t tileY) const {
         return true;
     }
 
-    return LEVEL[tileY][tileX] == '#';
+    return activeLevel().tiles[tileY][tileX] == '#';
 }
 
 bool Mario::isActorSupported(const MarioActor &actor) const {
@@ -323,13 +329,14 @@ bool Mario::overlaps(float ax, float ay, int16_t aw, int16_t ah,
 }
 
 void Mario::updateCoins() {
-    const int16_t coinX[2] = {5 * TILE_SIZE + COIN_HITBOX_INSET, 12 * TILE_SIZE + COIN_HITBOX_INSET};
-    const int16_t coinY[2] = {8 * TILE_SIZE + COIN_HITBOX_INSET, 6 * TILE_SIZE + COIN_HITBOX_INSET};
+    const MarioLevels::Level &level = activeLevel();
 
-    for (uint8_t i = 0; i < 2; i++) {
+    for (uint8_t i = 0; i < level.coinCount; i++) {
+        const int16_t coinX = level.coins[i].x * TILE_SIZE + COIN_HITBOX_INSET;
+        const int16_t coinY = level.coins[i].y * TILE_SIZE + COIN_HITBOX_INSET;
         if (!state.coinCollected[i] &&
             overlaps(state.player.x, state.player.y, state.player.w, state.player.h,
-                     coinX[i], coinY[i], COIN_HITBOX_SIZE, COIN_HITBOX_SIZE)) {
+                     coinX, coinY, COIN_HITBOX_SIZE, COIN_HITBOX_SIZE)) {
             state.coinCollected[i] = true;
             state.coinDirty[i] = true;
             state.coins++;
@@ -420,16 +427,15 @@ void Mario::drawDirtyFrame(LGFX &display) {
                        MarioAssets::SIZE + 6);
     }
 
-    const int16_t coinX[2] = {5 * TILE_SIZE, 12 * TILE_SIZE};
-    const int16_t coinY[2] = {8 * TILE_SIZE, 6 * TILE_SIZE};
-    for (uint8_t i = 0; i < 2; i++) {
+    const MarioLevels::Level &level = activeLevel();
+    for (uint8_t i = 0; i < level.coinCount; i++) {
         if (state.coinDirty[i]) {
-            pushWorldPatch(display, coinX[i] - 2, coinY[i] - 2,
+            pushWorldPatch(display, level.coins[i].x * TILE_SIZE - 2, level.coins[i].y * TILE_SIZE - 2,
                            MarioAssets::SIZE + 4, MarioAssets::SIZE + 4);
         }
     }
 
-    for (uint8_t i = 0; i < 2; i++) {
+    for (uint8_t i = 0; i < MarioLevels::MAX_COINS; i++) {
         state.coinDirty[i] = false;
     }
 
@@ -496,7 +502,7 @@ void Mario::drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worl
 
     for (int16_t ty = top; ty <= bottom; ty++) {
         for (int16_t tx = left; tx <= right; tx++) {
-            if (LEVEL[ty][tx] == '#') {
+            if (activeLevel().tiles[ty][tx] == '#') {
                 const int16_t px = canvasX + tx * TILE_SIZE - worldX;
                 const int16_t py = canvasY + ty * TILE_SIZE - worldY;
                 MarioAssets::draw(canvas, px, py, MarioAssets::GROUND);
@@ -514,20 +520,23 @@ void Mario::drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worl
 }
 
 void Mario::drawCoins(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
-    const int16_t coinX[2] = {5 * TILE_SIZE + 8, 12 * TILE_SIZE + 8};
-    const int16_t coinY[2] = {8 * TILE_SIZE + 8, 6 * TILE_SIZE + 8};
-    for (uint8_t i = 0; i < 2; i++) {
+    const MarioLevels::Level &level = activeLevel();
+    for (uint8_t i = 0; i < level.coinCount; i++) {
         if (!state.coinCollected[i]) {
-            MarioAssets::draw(canvas, coinX[i] + offsetX - 8, coinY[i] + offsetY - 8, MarioAssets::COIN);
+            MarioAssets::draw(canvas,
+                              level.coins[i].x * TILE_SIZE + offsetX,
+                              level.coins[i].y * TILE_SIZE + offsetY,
+                              MarioAssets::COIN);
         }
     }
 }
 
 void Mario::drawFlag(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
-    canvas.drawFastVLine(17 * TILE_SIZE + 4 + offsetX, 4 * TILE_SIZE + offsetY, TILE_SIZE * 2, TFT_WHITE);
-    canvas.fillTriangle(17 * TILE_SIZE + 5 + offsetX, 4 * TILE_SIZE + offsetY,
-                        17 * TILE_SIZE + 5 + offsetX, 4 * TILE_SIZE + 16 + offsetY,
-                        18 * TILE_SIZE + 1 + offsetX, 4 * TILE_SIZE + 8 + offsetY, FLAG);
+    const MarioLevels::TilePoint flag = activeLevel().flag;
+    canvas.drawFastVLine(flag.x * TILE_SIZE + 4 + offsetX, flag.y * TILE_SIZE + offsetY, TILE_SIZE * 2, TFT_WHITE);
+    canvas.fillTriangle(flag.x * TILE_SIZE + 5 + offsetX, flag.y * TILE_SIZE + offsetY,
+                        flag.x * TILE_SIZE + 5 + offsetX, flag.y * TILE_SIZE + 16 + offsetY,
+                        (flag.x + 1) * TILE_SIZE + 1 + offsetX, flag.y * TILE_SIZE + 8 + offsetY, FLAG);
 }
 
 void Mario::drawEnemy(lgfx::LGFXBase &canvas, int16_t offsetX, int16_t offsetY) {
@@ -555,7 +564,9 @@ void Mario::drawStatus(LGFX &display) {
         display.setTextColor(TFT_WHITE, TFT_BLACK);
         display.setTextSize(1);
         display.setTextDatum(top_left);
-        display.drawString("COINS " + static_cast<String>(state.coins) + "/2", 4, 3);
+        display.drawString(static_cast<String>(activeLevel().name) +
+                           "  COINS " + static_cast<String>(state.coins) +
+                           "/" + static_cast<String>(activeLevel().coinCount), 4, 3);
         return;
     }
 
@@ -563,7 +574,9 @@ void Mario::drawStatus(LGFX &display) {
     status.setTextColor(TFT_WHITE, TFT_BLACK);
     status.setTextSize(1);
     status.setTextDatum(top_left);
-    status.drawString("COINS " + static_cast<String>(state.coins) + "/2", 4, 3);
+    status.drawString(static_cast<String>(activeLevel().name) +
+                      "  COINS " + static_cast<String>(state.coins) +
+                      "/" + static_cast<String>(activeLevel().coinCount), 4, 3);
 
     display.startWrite();
     status.pushSprite(&display, 0, 0);

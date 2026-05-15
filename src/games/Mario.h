@@ -1,6 +1,7 @@
 #ifndef MINIARCADEMACHINE_MARIO_H
 #define MINIARCADEMACHINE_MARIO_H
 #include "Game.h"
+#include "games/mario/MarioLevels.h"
 
 enum class MarioMode {
     START,
@@ -23,9 +24,10 @@ struct MarioState {
     uint32_t lastFrameMicros = 0;
     uint32_t lastJumpPressedMs = 0;
     uint32_t lastGroundedMs = 0;
+    uint8_t currentLevel = 0;
     uint8_t coins = 0;
-    bool coinCollected[2] = {false, false};
-    bool coinDirty[2] = {false, false};
+    bool coinCollected[MarioLevels::MAX_COINS] = {false, false, false};
+    bool coinDirty[MarioLevels::MAX_COINS] = {false, false, false};
     MarioActor player;
     MarioActor enemy;
     float lastPlayerX = 0.0f;
@@ -59,6 +61,8 @@ private:
     bool statusDirty = true;
 
     void resetLevel();
+    const MarioLevels::Level &activeLevel() const;
+    void advanceLevel();
     bool shouldStep();
     void stepPhysics(GameContext &ctx);
     void moveActor(MarioActor &actor, float dx, float dy);
