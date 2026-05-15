@@ -8,6 +8,12 @@ namespace MarioAssets {
 constexpr int16_t SIZE = 16;
 constexpr uint16_t TRANSPARENT = 0xFFFF;
 
+constexpr uint16_t hexToRgb565(uint32_t hex) {
+    return (((hex >> 16) & 0xF8) << 8) |
+           (((hex >> 8) & 0xFC) << 3) |
+           ((hex & 0xFF) >> 3);
+}
+
 enum class SpriteId {
     Ground,
     Coin,
@@ -28,19 +34,19 @@ struct Sprite16 {
     bool hasTransparency;
 };
 
-constexpr uint16_t SKY = 0x7DFF;
-constexpr uint16_t BLACK = 0x0000;
-constexpr uint16_t WHITE = 0xFFFF;
-constexpr uint16_t GROUND_LIGHT = 0xC3A6;
-constexpr uint16_t GROUND_MID = 0xA303;
-constexpr uint16_t GROUND_DARK = 0x61A0;
-constexpr uint16_t COIN_YELLOW = 0xFFE0;
-constexpr uint16_t COIN_ORANGE = 0xFD20;
-constexpr uint16_t PLAYER_RED = 0xD800;
-constexpr uint16_t PLAYER_SKIN = 0xFD6C;
-constexpr uint16_t PLAYER_BLUE = 0x025F;
-constexpr uint16_t GOOMBA_BROWN = 0xA145;
-constexpr uint16_t GOOMBA_TAN = 0xD3A5;
+constexpr uint16_t SKY = hexToRgb565(0x7DFFFF);
+constexpr uint16_t BLACK = hexToRgb565(0x000000);
+constexpr uint16_t WHITE = hexToRgb565(0xFFFFFF);
+constexpr uint16_t GROUND_LIGHT = hexToRgb565(0xC58E31);
+constexpr uint16_t GROUND_MID = hexToRgb565(0xA06020);
+constexpr uint16_t GROUND_DARK = hexToRgb565(0x603600);
+constexpr uint16_t COIN_YELLOW = hexToRgb565(0xFFE600);
+constexpr uint16_t COIN_ORANGE = hexToRgb565(0xFF9E00);
+constexpr uint16_t PLAYER_RED = hexToRgb565(0xD80000);
+constexpr uint16_t PLAYER_SKIN = hexToRgb565(0xFFAD66);
+constexpr uint16_t PLAYER_BLUE = hexToRgb565(0x006BFF);
+constexpr uint16_t GOOMBA_BROWN = hexToRgb565(0xA14528);
+constexpr uint16_t GOOMBA_TAN = hexToRgb565(0xD6A552);
 
 static const PaletteEntry GROUND_PALETTE[] = {
     {'.', GROUND_DARK},
