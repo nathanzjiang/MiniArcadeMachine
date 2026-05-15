@@ -34,6 +34,7 @@ struct MarioState {
     float lastEnemyY = 0.0f;
     bool enemyAlive = true;
     bool lastEnemyAlive = true;
+    bool playerWasJumping = false;
     bool jumpReady = true;
     int8_t enemyDir = -1;
 };
@@ -69,6 +70,7 @@ private:
     void checkPlayerHazards();
     void drawPlayfield(LGFX &display);
     void drawDirtyFrame(LGFX &display);
+    void pushWorldPatch(LGFX &display, int16_t worldX, int16_t worldY, int16_t w, int16_t h);
     void drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worldY,
                          int16_t w, int16_t h, bool includeActors,
                          int16_t canvasX = 0, int16_t canvasY = 0);

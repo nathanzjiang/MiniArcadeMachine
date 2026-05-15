@@ -46,14 +46,6 @@ const int16_t ENEMY_SPRITE_OFFSET_X = -1;
 const int16_t ENEMY_SPRITE_OFFSET_Y = -2;
 const int16_t COIN_HITBOX_INSET = 2;
 const int16_t COIN_HITBOX_SIZE = 12;
-
-void expandDirtyRect(int16_t &left, int16_t &top, int16_t &right, int16_t &bottom,
-                     int16_t x, int16_t y, int16_t w, int16_t h) {
-    left = min<int16_t>(left, x - 3);
-    top = min<int16_t>(top, y - 3);
-    right = max<int16_t>(right, x + w + 3);
-    bottom = max<int16_t>(bottom, y + h + 3);
-}
 }
 
 void Mario::begin(GameContext &ctx) {
@@ -147,6 +139,7 @@ void Mario::render(GameContext &ctx) {
         state.lastEnemyX = state.enemy.x;
         state.lastEnemyY = state.enemy.y;
         state.lastEnemyAlive = state.enemyAlive;
+        state.playerWasJumping = !state.player.onGround || state.player.vy < -0.1f;
         state.coinDirty[0] = false;
         state.coinDirty[1] = false;
         return;
@@ -181,6 +174,7 @@ void Mario::resetLevel() {
     state.lastEnemyX = state.enemy.x;
     state.lastEnemyY = state.enemy.y;
     state.lastEnemyAlive = state.enemyAlive;
+    state.playerWasJumping = !state.player.onGround || state.player.vy < -0.1f;
     state.lastFrameMicros = micros();
     statusDirty = true;
     gameEnded = false;
@@ -366,66 +360,47 @@ void Mario::drawPlayfield(LGFX &display) {
 }
 
 void Mario::drawDirtyFrame(LGFX &display) {
-    int16_t left = MAP_W * TILE_SIZE;
-    int16_t top = MAP_H * TILE_SIZE;
-    int16_t right = 0;
-    int16_t bottom = 0;
+    const bool playerIsJumping = !state.player.onGround || state.player.vy < -0.1f;
+    const bool playerMoved = static_cast<int16_t>(state.lastPlayerX) != static_cast<int16_t>(state.player.x) ||
+                             static_cast<int16_t>(state.lastPlayerY) != static_cast<int16_t>(state.player.y);
+    const bool playerSpriteChanged = state.playerWasJumping != playerIsJumping;
 
-    expandDirtyRect(left, top, right, bottom,
-                    state.lastPlayerX + PLAYER_SPRITE_OFFSET_X,
-                    state.lastPlayerY + PLAYER_SPRITE_OFFSET_Y,
-                    MarioAssets::SIZE, MarioAssets::SIZE);
-    expandDirtyRect(left, top, right, bottom,
-                    state.player.x + PLAYER_SPRITE_OFFSET_X,
-                    state.player.y + PLAYER_SPRITE_OFFSET_Y,
-                    MarioAssets::SIZE, MarioAssets::SIZE);
+    if (playerMoved || playerSpriteChanged) {
+        pushWorldPatch(display,
+                       state.lastPlayerX + PLAYER_SPRITE_OFFSET_X - 3,
+                       state.lastPlayerY + PLAYER_SPRITE_OFFSET_Y - 3,
+                       MarioAssets::SIZE + 6,
+                       MarioAssets::SIZE + 6);
+
+        pushWorldPatch(display,
+                       state.player.x + PLAYER_SPRITE_OFFSET_X - 3,
+                       state.player.y + PLAYER_SPRITE_OFFSET_Y - 3,
+                       MarioAssets::SIZE + 6,
+                       MarioAssets::SIZE + 6);
+    }
 
     if (state.lastEnemyAlive) {
-        expandDirtyRect(left, top, right, bottom,
-                        state.lastEnemyX + ENEMY_SPRITE_OFFSET_X,
-                        state.lastEnemyY + ENEMY_SPRITE_OFFSET_Y,
-                        MarioAssets::SIZE, MarioAssets::SIZE);
+        pushWorldPatch(display,
+                       state.lastEnemyX + ENEMY_SPRITE_OFFSET_X - 3,
+                       state.lastEnemyY + ENEMY_SPRITE_OFFSET_Y - 3,
+                       MarioAssets::SIZE + 6,
+                       MarioAssets::SIZE + 6);
     }
     if (state.enemyAlive) {
-        expandDirtyRect(left, top, right, bottom,
-                        state.enemy.x + ENEMY_SPRITE_OFFSET_X,
-                        state.enemy.y + ENEMY_SPRITE_OFFSET_Y,
-                        MarioAssets::SIZE, MarioAssets::SIZE);
+        pushWorldPatch(display,
+                       state.enemy.x + ENEMY_SPRITE_OFFSET_X - 3,
+                       state.enemy.y + ENEMY_SPRITE_OFFSET_Y - 3,
+                       MarioAssets::SIZE + 6,
+                       MarioAssets::SIZE + 6);
     }
 
     const int16_t coinX[2] = {5 * TILE_SIZE, 12 * TILE_SIZE};
     const int16_t coinY[2] = {8 * TILE_SIZE, 6 * TILE_SIZE};
     for (uint8_t i = 0; i < 2; i++) {
         if (state.coinDirty[i]) {
-            expandDirtyRect(left, top, right, bottom, coinX[i], coinY[i],
-                            MarioAssets::SIZE, MarioAssets::SIZE);
+            pushWorldPatch(display, coinX[i] - 2, coinY[i] - 2,
+                           MarioAssets::SIZE + 4, MarioAssets::SIZE + 4);
         }
-    }
-
-    left = max<int16_t>(0, left);
-    top = max<int16_t>(14, top);
-    right = min<int16_t>(MAP_W * TILE_SIZE, right);
-    bottom = min<int16_t>(MAP_H * TILE_SIZE, bottom);
-    const int16_t w = right - left;
-    const int16_t h = bottom - top;
-    if (w <= 0 || h <= 0) {
-        return;
-    }
-
-    LGFX_Sprite dirty(&display);
-    dirty.setColorDepth(16);
-    if (dirty.createSprite(w, h) == nullptr) {
-        display.startWrite();
-        display.setClipRect(left, top, w, h);
-        drawWorldRegion(display, left, top, w, h, true, left, top);
-        display.clearClipRect();
-        display.endWrite();
-    } else {
-        drawWorldRegion(dirty, left, top, w, h, true);
-        display.startWrite();
-        dirty.pushSprite(&display, left, top);
-        display.endWrite();
-        dirty.deleteSprite();
     }
 
     for (uint8_t i = 0; i < 2; i++) {
@@ -437,6 +412,42 @@ void Mario::drawDirtyFrame(LGFX &display) {
     state.lastEnemyX = state.enemy.x;
     state.lastEnemyY = state.enemy.y;
     state.lastEnemyAlive = state.enemyAlive;
+    state.playerWasJumping = playerIsJumping;
+}
+
+void Mario::pushWorldPatch(LGFX &display, int16_t worldX, int16_t worldY, int16_t w, int16_t h) {
+    worldX = max<int16_t>(0, worldX);
+    worldY = max<int16_t>(14, worldY);
+    w = min<int16_t>(w, MAP_W * TILE_SIZE - worldX);
+    h = min<int16_t>(h, MAP_H * TILE_SIZE - worldY);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    static LGFX_Sprite patch(&display);
+    static bool patchReady = false;
+    static const int16_t PATCH_W = MarioAssets::SIZE + 8;
+    static const int16_t PATCH_H = MarioAssets::SIZE + 8;
+
+    if (!patchReady) {
+        patch.setColorDepth(16);
+        patchReady = patch.createSprite(PATCH_W, PATCH_H) != nullptr;
+    }
+
+    if (!patchReady || w > PATCH_W || h > PATCH_H) {
+        display.startWrite();
+        display.setClipRect(worldX, worldY, w, h);
+        drawWorldRegion(display, worldX, worldY, w, h, true, worldX, worldY);
+        display.clearClipRect();
+        display.endWrite();
+        return;
+    }
+
+    patch.fillRect(0, 0, PATCH_W, PATCH_H, SKY);
+    drawWorldRegion(patch, worldX, worldY, PATCH_W, PATCH_H, true);
+    display.startWrite();
+    patch.pushSprite(&display, worldX, worldY);
+    display.endWrite();
 }
 
 void Mario::drawWorldRegion(lgfx::LGFXBase &canvas, int16_t worldX, int16_t worldY,
