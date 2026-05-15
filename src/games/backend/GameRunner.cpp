@@ -1,7 +1,5 @@
 #include "GameRunner.h"
 
-#include "games/SpriteDemoGame.h"
-
 GameRunner::GameRunner(LGFX &display, InputManager &input)
     : display(display), input(input) {
 }
@@ -28,7 +26,13 @@ void GameRunner::loop() {
     currentGame->render(ctx);
 
     if (currentGame->gameEnded == true) {
-        switchTo(new SpriteDemoGame);
+        Game *nextGame = currentGame->nextGame;
+        currentGame->gameEnded = false;
+        currentGame->nextGame = nullptr;
+
+        if (nextGame != nullptr) {
+            switchTo(nextGame);
+        }
     }
 }
 
@@ -36,6 +40,8 @@ void GameRunner::switchTo(Game *nextGame) {
     currentGame = nextGame;
 
     if (currentGame != nullptr) {
+        currentGame->gameEnded = false;
+        currentGame->nextGame = nullptr;
         GameContext ctx{display, input.state(), millis()};
         currentGame->begin(ctx);
     }

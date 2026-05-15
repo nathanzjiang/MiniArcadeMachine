@@ -21,6 +21,7 @@ public:
     virtual void render(GameContext &ctx) = 0;
 
     bool gameEnded = false;
+    Game *nextGame = nullptr;
 };
 
 #endif
