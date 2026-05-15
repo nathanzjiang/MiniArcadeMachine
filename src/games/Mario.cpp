@@ -113,11 +113,30 @@ void Mario::render(GameContext &ctx) {
         return;
     }
 
-    if (screenDirty || frameDirty) {
+    if (screenDirty) {
         drawPlayfield(ctx.display);
         drawStatus(ctx.display);
         screenDirty = false;
         frameDirty = false;
+        statusDirty = false;
+        state.lastPlayerX = state.player.x;
+        state.lastPlayerY = state.player.y;
+        state.lastEnemyX = state.enemy.x;
+        state.lastEnemyY = state.enemy.y;
+        state.lastEnemyAlive = state.enemyAlive;
+        state.coinDirty[0] = false;
+        state.coinDirty[1] = false;
+        return;
+    }
+
+    if (frameDirty) {
+        drawDirtyFrame(ctx.display);
+        frameDirty = false;
+    }
+
+    if (statusDirty) {
+        drawStatus(ctx.display);
+        statusDirty = false;
     }
 }
 
@@ -134,7 +153,13 @@ void Mario::resetLevel() {
     state.enemy.h = 14;
     state.enemy.vx = -0.6f;
     state.enemyDir = -1;
+    state.lastPlayerX = state.player.x;
+    state.lastPlayerY = state.player.y;
+    state.lastEnemyX = state.enemy.x;
+    state.lastEnemyY = state.enemy.y;
+    state.lastEnemyAlive = state.enemyAlive;
     state.lastFrameMicros = micros();
+    statusDirty = true;
     gameEnded = false;
 }
 
@@ -262,7 +287,9 @@ void Mario::updateCoins() {
             overlaps(state.player.x, state.player.y, state.player.w, state.player.h,
                      coinX[i], coinY[i], 8, 8)) {
             state.coinCollected[i] = true;
+            state.coinDirty[i] = true;
             state.coins++;
+            statusDirty = true;
         }
     }
 }
@@ -325,6 +352,79 @@ void Mario::drawPlayfield(LGFX &display) {
         }
     }
 
+    drawCoins(display);
+    drawFlag(display);
+    drawEnemy(display);
+    drawPlayer(display);
+
+    display.endWrite();
+}
+
+void Mario::drawDirtyFrame(LGFX &display) {
+    const int16_t px = state.lastPlayerX - 2;
+    const int16_t py = state.lastPlayerY - 2;
+    const int16_t ex = state.lastEnemyX - 2;
+    const int16_t ey = state.lastEnemyY - 2;
+
+    display.startWrite();
+
+    drawBackgroundRegion(display, px, py, state.player.w + 4, state.player.h + 4);
+    if (state.lastEnemyAlive) {
+        drawBackgroundRegion(display, ex, ey, state.enemy.w + 4, state.enemy.h + 4);
+    }
+
+    const int16_t coinX[2] = {5 * TILE_SIZE + 3, 12 * TILE_SIZE + 3};
+    const int16_t coinY[2] = {8 * TILE_SIZE + 3, 6 * TILE_SIZE + 3};
+    for (uint8_t i = 0; i < 2; i++) {
+        if (state.coinDirty[i]) {
+            drawBackgroundRegion(display, coinX[i], coinY[i], 10, 10);
+            state.coinDirty[i] = false;
+        }
+    }
+
+    drawEnemy(display);
+    drawPlayer(display);
+    display.endWrite();
+
+    state.lastPlayerX = state.player.x;
+    state.lastPlayerY = state.player.y;
+    state.lastEnemyX = state.enemy.x;
+    state.lastEnemyY = state.enemy.y;
+    state.lastEnemyAlive = state.enemyAlive;
+}
+
+void Mario::drawBackgroundRegion(LGFX &display, int16_t x, int16_t y, int16_t w, int16_t h) {
+    x = max<int16_t>(0, x);
+    y = max<int16_t>(14, y);
+    w = min<int16_t>(w, MAP_W * TILE_SIZE - x);
+    h = min<int16_t>(h, MAP_H * TILE_SIZE - y);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    display.fillRect(x, y, w, h, SKY);
+
+    const int16_t left = max<int16_t>(0, x / TILE_SIZE);
+    const int16_t right = min<int16_t>(MAP_W - 1, (x + w - 1) / TILE_SIZE);
+    const int16_t top = max<int16_t>(0, y / TILE_SIZE);
+    const int16_t bottom = min<int16_t>(MAP_H - 1, (y + h - 1) / TILE_SIZE);
+
+    for (int16_t ty = top; ty <= bottom; ty++) {
+        for (int16_t tx = left; tx <= right; tx++) {
+            if (LEVEL[ty][tx] == '#') {
+                const int16_t px = tx * TILE_SIZE;
+                const int16_t py = ty * TILE_SIZE;
+                display.fillRect(px, py, TILE_SIZE, TILE_SIZE, BRICK);
+                display.drawRect(px, py, TILE_SIZE, TILE_SIZE, DIRT);
+            }
+        }
+    }
+
+    drawCoins(display);
+    drawFlag(display);
+}
+
+void Mario::drawCoins(LGFX &display) {
     const int16_t coinX[2] = {5 * TILE_SIZE + 8, 12 * TILE_SIZE + 8};
     const int16_t coinY[2] = {8 * TILE_SIZE + 8, 6 * TILE_SIZE + 8};
     for (uint8_t i = 0; i < 2; i++) {
@@ -333,23 +433,29 @@ void Mario::drawPlayfield(LGFX &display) {
             display.drawCircle(coinX[i], coinY[i], 5, TFT_BLACK);
         }
     }
+}
 
+void Mario::drawFlag(LGFX &display) {
     display.drawFastVLine(17 * TILE_SIZE + 4, 4 * TILE_SIZE, TILE_SIZE * 2, TFT_WHITE);
     display.fillTriangle(17 * TILE_SIZE + 5, 4 * TILE_SIZE,
                          17 * TILE_SIZE + 5, 4 * TILE_SIZE + 16,
                          18 * TILE_SIZE + 1, 4 * TILE_SIZE + 8, FLAG);
+}
 
-    if (state.enemyAlive) {
-        display.fillRoundRect(state.enemy.x, state.enemy.y, state.enemy.w, state.enemy.h, 3, ENEMY);
-        display.fillRect(state.enemy.x + 3, state.enemy.y + 4, 2, 2, TFT_BLACK);
-        display.fillRect(state.enemy.x + 9, state.enemy.y + 4, 2, 2, TFT_BLACK);
+void Mario::drawEnemy(LGFX &display) {
+    if (!state.enemyAlive) {
+        return;
     }
 
+    display.fillRoundRect(state.enemy.x, state.enemy.y, state.enemy.w, state.enemy.h, 3, ENEMY);
+    display.fillRect(state.enemy.x + 3, state.enemy.y + 4, 2, 2, TFT_BLACK);
+    display.fillRect(state.enemy.x + 9, state.enemy.y + 4, 2, 2, TFT_BLACK);
+}
+
+void Mario::drawPlayer(LGFX &display) {
     display.fillRect(state.player.x, state.player.y + 5, state.player.w, state.player.h - 5, PLAYER);
     display.fillRect(state.player.x + 2, state.player.y, state.player.w - 4, 6, PLAYER_TRIM);
     display.fillRect(state.player.x + 8, state.player.y + 8, 2, 2, TFT_BLACK);
-
-    display.endWrite();
 }
 
 void Mario::drawStatus(LGFX &display) {

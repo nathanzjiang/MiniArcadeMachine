@@ -25,9 +25,15 @@ struct MarioState {
     uint32_t lastGroundedMs = 0;
     uint8_t coins = 0;
     bool coinCollected[2] = {false, false};
+    bool coinDirty[2] = {false, false};
     MarioActor player;
     MarioActor enemy;
+    float lastPlayerX = 0.0f;
+    float lastPlayerY = 0.0f;
+    float lastEnemyX = 0.0f;
+    float lastEnemyY = 0.0f;
     bool enemyAlive = true;
+    bool lastEnemyAlive = true;
     int8_t enemyDir = -1;
 };
 
@@ -48,6 +54,7 @@ private:
     MarioMode mode = MarioMode::START;
     bool frameDirty = true;
     bool screenDirty = true;
+    bool statusDirty = true;
 
     void resetLevel();
     bool shouldStep();
@@ -60,6 +67,12 @@ private:
     void updateEnemy();
     void checkPlayerHazards();
     void drawPlayfield(LGFX &display);
+    void drawDirtyFrame(LGFX &display);
+    void drawBackgroundRegion(LGFX &display, int16_t x, int16_t y, int16_t w, int16_t h);
+    void drawCoins(LGFX &display);
+    void drawFlag(LGFX &display);
+    void drawEnemy(LGFX &display);
+    void drawPlayer(LGFX &display);
     void drawStatus(LGFX &display);
     void drawCenteredMessage(LGFX &display, const char *title, const char *prompt);
 };
