@@ -13,14 +13,15 @@ Snake snake;
 Mario mario;
 
 const char HELP_TEXT[] =
-    "Welcome to MINI-ARC OS.\n"
-    "Run snake.app first.\n"
-    "Beat Snake to unlock Mario.\n"
-    "Beat Mario to unlock the secret file.";
+    "You accidentally locked yourself\n"
+    "out of your own apps,\n"
+    "but need your email password\n"
+    "from SECRET.txt.\n"
+    "Good luck!";
 
 const char SECRET_TEXT[] =
-    "ACCESS GRANTED.\n"
-    "You cleared every available game.";
+    "email: miniarc@gmail.com\n"
+    "pw: abc12345";
 
 ArcadeMenuItem menuItems[] = {
     {"README", "help.txt", ArcadeMenuItemType::Text, nullptr, HELP_TEXT, nullptr},
