@@ -1,2 +1,6 @@
 /MiniArcadeMachine.ino.blockly
 /.idea/
+/include/
+/lib/
+/.pio/
+/test/
